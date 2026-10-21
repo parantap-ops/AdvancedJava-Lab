@@ -1,53 +1,46 @@
-import java.sql.*;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 
 public class StudentDao {
+    private static final String FILE_NAME = "students.txt";
 
     public StudentDao() {
-        String sql = "CREATE TABLE IF NOT EXISTS students (" +
-                     "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                     "name TEXT NOT NULL, " +
-                     "email TEXT NOT NULL, " +
-                     "course TEXT NOT NULL);";
-        try (Connection conn = DbConnection.getConnection();
-             Statement stmt = conn.createStatement()) {
-            stmt.execute(sql);
-        } catch (SQLException e) {
+        File file = new File(FILE_NAME);
+        try {
+            if (!file.exists()) {
+                file.createNewFile();
+            }
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
     public void addStudent(Student student) {
-        String sql = "INSERT INTO students(name, email, course) VALUES(?, ?, ?)";
-        try (Connection conn = DbConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setString(1, student.getName());
-            pstmt.setString(2, student.getEmail());
-            pstmt.setString(3, student.getCourse());
-            pstmt.executeUpdate();
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(FILE_NAME, true))) {
+            int id = (int) (System.currentTimeMillis() % 10000);
+            writer.write(id + "," + student.getName() + "," + student.getEmail() + "," + student.getCourse());
+            writer.newLine();
             System.out.println("Student added successfully!");
-        } catch (SQLException e) {
-            e.printStackTrace();
+        } catch (IOException e) {
+            System.out.println("Error saving student: " + e.getMessage());
         }
     }
 
     public List<Student> getAllStudents() {
         List<Student> students = new ArrayList<>();
-        String sql = "SELECT * FROM students";
-        try (Connection conn = DbConnection.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-            while (rs.next()) {
-                students.add(new Student(
-                    rs.getInt("id"),
-                    rs.getString("name"),
-                    rs.getString("email"),
-                    rs.getString("course")
-                ));
+        try (BufferedReader reader = new BufferedReader(new FileReader(FILE_NAME))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.trim().isEmpty()) continue;
+                String[] parts = line.split(",");
+                if (parts.length >= 4) {
+                    int id = Integer.parseInt(parts[0]);
+                    students.add(new Student(id, parts[1], parts[2], parts[3]));
+                }
             }
-        } catch (SQLException e) {
-            e.printStackTrace();
+        } catch (IOException e) {
+            System.out.println("Error reading students: " + e.getMessage());
         }
         return students;
     }
